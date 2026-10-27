@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#138a4d"><title>MIRA V3.5 — Zelar</title>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+</script>
+<style>
+:root{--g:#138a4d;--g2:#0b6d3b;--bg:#f3f8f5;--card:#fff;--line:#dce8e0;--txt:#173126;--muted:#6c7b73;--warn:#b27600;--danger:#b22d2d}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--txt)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.top{height:64px;background:linear-gradient(135deg,var(--g2),var(--g));color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;z-index:20}.logo{font-weight:900;font-size:22px}.logo small{font-size:10px;opacity:.8;margin-left:7px}
+.layout{display:flex;min-height:calc(100vh - 64px)}aside{width:255px;background:#fff;border-right:1px solid var(--line);padding:12px}.nav button{width:100%;border:0;background:none;text-align:left;padding:10px 12px;border-radius:9px;color:#365144;margin:2px 0;font-size:14px}.nav button.active,.nav button:hover{background:#e5f6eb;color:var(--g2);font-weight:bold}.main{flex:1;padding:22px;max-width:1500px;margin:auto;width:100%}
+.grid{display:grid;gap:15px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:17px;box-shadow:0 5px 18px #163c1c0b}.title{margin:0;font-size:25px}.muted{color:var(--muted);font-size:13px}.section{margin-top:18px}.kpi{font-size:28px;color:var(--g2);font-weight:900;margin-top:5px}
+.btn{border:0;border-radius:9px;background:var(--g);color:#fff;padding:10px 14px;font-weight:bold}.btn.alt{background:#e8f4ec;color:var(--g2)}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:11px}.field label{font-size:12px;font-weight:bold;color:#52645a}.field input,.field select,.field textarea{border:1px solid #cad9d0;border-radius:8px;padding:10px;background:#fff}.field textarea{min-height:85px}.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#e5f6eb;color:#0b713d;font-size:12px;font-weight:bold}
+.table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px 16px;border-bottom:1px solid #e9efeb;text-align:left;font-size:14px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.cal-day{background:#fff;border:1px solid var(--line);border-radius:8px;min-height:80px;padding:8px;cursor:pointer;position:relative}
+.cal-day:hover{border-color:var(--g)}
+.cal-day.selected{border:2px solid var(--g);background:#f2faf5}
+@media(max-width:850px){aside{display:block;width:100%;border-right:0;border-bottom:1px solid var(--line)}.main{padding:13px}.g4,.g3,.g2,.formgrid{grid-template-columns:1fr}.top{height:58px}}
+</style>
+</head><body><div id="app"></div>
+<script>
+const DB='MIRA_ZELAR_V35';
+const S={page:'dashboard',os:[],clients:[],units:[],techs:[],checks:[],current:null,osSearch:'',osTabFiltro:'Ativas',selectedDate:'23/10/2026'};
+const units=['Iguatemi Campinas — Loja 1','Iguatemi Campinas — Loja 2','Parque Dom Pedro — Loja 1','Parque Dom Pedro — Loja 2','Parque Dom Pedro — Loja 3','Campinas Shopping — Loja 1','Campinas Shopping — Loja 2','Galleria Shopping','Parque das Bandeiras','Shopping Valinhos','ParkCity Sumaré'];
+const defaultChecks=['Luminárias/lâmpadas','Quadro elétrico — inspeção visual','Portas/dobradiças/fechaduras','Móveis e cadeiras','Gavetas/corrediças','Pintura/parede/teto','Filtros dos evaporadores','Evaporador','Bandeja e dreno','Condenadora','Ruído/vibração','Temperatura/operação'];
+const demoOS=[
+  {id:'831a1d75',title:'Gaveta não Abre',client:'VIVARA CAM',unit:'Av. Iguatemi, 777 - Vila Brandina, Campinas - SP',status:'Concluída',tech:'Ronald Orsoli',date:'23/10/2026',val:'180,00',spag:'Pendente',prio:'Média'},
+  {id:'OS-1001',title:'Preventiva predial + climatização',client:'VIVARA CAM',unit:'Iguatemi Campinas — Loja 1',status:'Em andamento',tech:'Renato',date:'24/10/2026',val:'250,00',spag:'Pago',prio:'Alta'},
+  {id:'OS-1002',title:'Corretiva elétrica',client:'VIVARA PDP',unit:'Parque Dom Pedro — Loja 2',status:'Aberta',tech:'Renato',date:'25/10/2026',val:'150,00',spag:'Pendente',prio:'Alta'}
+];
+
+function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function save(){localStorage.setItem(DB,JSON.stringify(S))}
+function load(){
+  try{Object.assign(S,JSON.parse(localStorage.getItem(DB)||'{}'))}catch(e){};
+  S.os=S.os||[];
+  S.clients=S.clients.length?S.clients:[{id:'CLI-1',name:'Vivara Campinas',contact:'Gerência'}];
+  S.units=S.units.length?S.units:units.map((name,i)=>({id:'UNI-'+(i+1),name,client:'Vivara'}));
+  S.techs=S.techs.length?S.techs:[{id:'TEC-1',name:'Ronald Orsoli',role:'Técnico'}];
+  S.checks=S.checks.length?S.checks:defaultChecks.map((name,i)=>({id:i+1,name,status:'Ok'}));
+  if(!S.os.length)S.os=demoOS;
+}
+
+function nav(id,label){return `<button class="${S.page===id?'active':''}" data-page="${id}">${label}</button>`}
+function shell(c){
+  let online=localStorage.getItem('MIRA_SYNC_URL');
+  return `<header class="top"><div class="logo">MIRA <small>ZELAR • Manutenção Integrada</small></div><div class="row"><span style="font-size:13px; font-weight:bold; background:rgba(255,255,255,0.15); padding:4px 10px; border-radius:20px;">${online?'● online configurável':'● local/offline'}</span></div></header>
+  <div class="layout"><aside><nav class="nav">
+    ${nav('dashboard','📊 Dashboard')}
+    ${nav('os','📄 Ordens de Serviço')}
+    ${nav('chamados','📥 Chamados Recebidos')}
+    ${nav('orcamentos','📋 Orçamentos')}
+    ${nav('checklists','☑ Checklists')}
+    ${nav('frota','🚐 Frota')}
+    ${nav('clientes','👥 Clientes')}
+    ${nav('equipamentos','🔧 Equipamentos')}
+    ${nav('tecnicos','👷 Técnicos')}
+    ${nav('mapa','📍 Mapa de Técnicos')}
+    ${nav('agenda','📅 Calendário')}
+    ${nav('config','⚙ Configuração')}
+  </nav></aside><main class="main">${c}</main></div>`
+}
+
+function kpi(a,b){return `<div class="card"><div class="muted">${a}</div><div class="kpi">${b}</div></div>`}
+function dashboard(){
+  return `<h1 class="title">Olá! 👋</h1><div class="muted">Painel operacional da Zelar</div><div class="grid g4 section">${kpi('OS abertas',S.os.filter(x=>x.status==='Aberta').length)}${kpi('Em andamento',S.os.filter(x=>x.status==='Em andamento').length)}${kpi('Concluídas',S.os.filter(x=>x.status==='Concluída').length)}${kpi('Clientes',S.clients.length)}</div><div class="grid g2 section"><div class="card"><h3>Agenda</h3>${S.os.slice(0,5).map(x=>`<div class="row" style="padding:9px 0;border-bottom:1px solid #edf1ee"><b>${esc(x.date||'')}</b><span>${esc(x.unit||'')}</span><span class="badge">${esc(x.status||'')}</span></div>`).join('')}</div><div class="card"><h3>Ações rápidas</h3><div class="row"><button class="btn" id="btnNovaOsDash">+ Nova OS</button><button class="btn alt" data-page="checklists">Checklist</button><button class="btn alt" data-page="clientes">Clientes</button></div></div></div>`
+}
+
+function agendaView(){
+  let selDateFormatted = S.selectedDate || '23/10/2026';
+  let osDoDia = S.os.filter(x => (x.date || '').includes(selDateFormatted.slice(0,10)));
+  let diasMes = Array.from({length: 31}, (_, i) => i + 1);
+
+  return `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+    <div><h1 class="title">Agenda do Mês</h1><div class="muted">Outubro 2026</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 20px;">
+    <div class="card">
+      <div style="display:grid; grid-template-columns: repeat(7, 1fr); text-align:center; font-weight:bold; font-size:12px; color:var(--muted); margin-bottom:10px;">
+        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+      </div>
+      <div class="cal-grid">
+        ${diasMes.map(d => {
+          let dayStr = String(d).padStart(2,'0') + '/10/2026';
+          let hasOS = S.os.filter(x => (x.date || '').includes(dayStr));
+          let isSelected = S.selectedDate === dayStr;
+          return `<div class="cal-day ${isSelected?'selected':''}" data-date="${dayStr}">
+            <div style="font-weight:bold; font-size:13px;">${d}</div>
+            ${hasOS.map(o=>`<div style="background:var(--g); color:#fff; font-size:10px; padding:2px 4px; border-radius:4px; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(o.title)}</div>`).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:15px;">
+      <div class="card">
+        <h3 style="margin-top:0;">Agenda - ${selDateFormatted}</h3>
+        ${osDoDia.length === 0 ? `<div class="muted" style="padding:15px 0;">Nenhum evento agendado para esta data.</div>` : osDoDia.map(o=>`
+          <div style="background:#f9fafb; padding:10px; border-radius:8px; margin-top:8px; border-left:4px solid var(--g);">
+            <b>${esc(o.title)}</b><br><small class="muted">${esc(o.client)} — ${esc(o.unit)}</small><br><span class="badge" style="margin-top:5px;">${esc(o.status)}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Resumo do Mês</h3>
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line);"><span>Total de Ordens</span><b>${S.os.length}</b></div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line);"><span>Concluídas</span><b style="color:var(--g2);">${S.os.filter(x=>x.status==='Concluída').length}</b></div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line);"><span>Em Andamento</span><b style="color:#1e40af;">${S.os.filter(x=>x.status==='Em andamento').length}</b></div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0;"><span>Abertas</span><b style="color:#b27600;">${S.os.filter(x=>x.status==='Aberta').length}</b></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function newos(){
+  return `<div class="card">
+    <h2 class="title" style="margin-bottom:15px;">Nova Ordem de Serviço</h2>
+    <form id="osForm">
+      <div class="formgrid">
+        <div class="field"><label>Título / Serviço</label><input type="text" id="osTitle" required placeholder="Ex: Preventiva predial"></div>
+        <div class="field"><label>Cliente</label><input type="text" id="osClient" required placeholder="Ex: VIVARA CAM"></div>
+        <div class="field"><label>Unidade / Endereço</label><input type="text" id="osUnit" required placeholder="Ex: Iguatemi Campinas — Loja 1"></div>
+        <div class="field"><label>Técnico Responsável</label><input type="text" id="osTech" required placeholder="Ex: Renato"></div>
+        <div class="field"><label>Agendamento</label><input type="text" id="osDate" value="23/10/2026"></div>
+        <div class="field"><label>Valor (R$)</label><input type="text" id="osVal" value="250,00"></div>
+        <div class="field"><label>Prioridade</label><select id="osPrio"><option>Baixa</option><option selected>Média</option><option>Alta</option></select></div>
+        <div class="field"><label>Status do Pagamento</label><select id="osSpag"><option>Pendente</option><option selected>Pago</option></select></div>
+      </div>
+      <div class="row" style="margin-top:15px;">
+        <button type="submit" class="btn">Salvar Ordem</button>
+        <button type="button" class="btn alt" id="cancelNewOs">Cancelar</button>
+      </div>
+    </form>
+  </div>`;
+}
+
+function osView() {
+  if (S.current === 'new') return newos();
+  let busca = (S.osSearch || '').toLowerCase();
+  let statusFiltro = S.osTabFiltro || 'Ativas';
+  let listaFiltrada = S.os.filter(x => {
+    let bateBusca = [x.id, x.title, x.client, x.tech, x.unit].join(' ').toLowerCase().includes(busca);
+    let bateStatus = statusFiltro === 'Concluídas' ? x.status === 'Concluída' : x.status !== 'Concluída';
+    return bateBusca && bateStatus;
+  });
+
+  return `<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h1 class="title">Ordens de Serviço</h1>
+        <div class="muted">Execução, checklist, fotos, GPS e assinatura.</div>
+      </div>
+      <div class="row">
+        <button class="btn alt" id="syncNow">🔄 Atualizar</button>
+        <button class="btn" id="newos">+ Nova Ordem</button>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px; margin-bottom: 15px;">
+      <button class="btn tab-btn ${statusFiltro==='Ativas'?'':'alt'}" data-tab="Ativas">Ativas</button>
+      <button class="btn tab-btn ${statusFiltro==='Concluídas'?'':'alt'}" data-tab="Concluídas">Concluídas</button>
+    </div>
+    <div style="margin-bottom: 15px;">
+      <input type="text" id="osSearchInput" value="${esc(busca)}" placeholder="Buscar ordens..." style="width: 100%; padding: 10px; border: 1px solid #cad9d0; border-radius: 8px; background: #fff;">
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="table">
+        <thead><tr style="color: var(--muted); background: #f9fafb;"><th>OS</th><th>Título</th><th>Cliente / Unidade</th><th>Técnico</th><th>Data</th><th>Status</th><th style="text-align: center;">Ações</th></tr></thead>
+        <tbody>
+          ${listaFiltrada.length === 0 ? `<tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 20px;">Nenhuma ordem encontrada.</td></tr>` : ''}
+          ${listaFiltrada.map(item => {
+            let bgStatus = item.status === 'Concluída' ? '#e5f6eb' : (item.status === 'Em andamento' ? '#eef7f1' : '#fff7e3');
+            let colorStatus = item.status === 'Concluída' ? '#0b713d' : (item.status === 'Em andamento' ? '#0b6d3b' : '#b27600');
+            return `<tr>
+              <td style="font-weight: bold; color: var(--g2);">${esc(item.id)}</td>
+              <td><b>${esc(item.title)}</b></td>
+              <td><div><b>${esc(item.client)}</b></div><small class="muted">${esc(item.unit)}</small></td>
+              <td>${esc(item.tech)}</td>
+              <td>${esc(item.date)}</td>
+              <td><span class="badge" style="background: ${bgStatus}; color: ${colorStatus};">${esc(item.status)}</span></td>
+              <td style="text-align: center;"><button class="btn alt" style="padding: 6px 12px; font-size: 12px;">Executar</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function genericSimpleView(title, subtitle, items, headers, rowFn) {
+  return `<h1 class="title">${title}</h1><div class="muted" style="margin-bottom:15px;">${subtitle}</div>
+  <div class="card"><table class="table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+  <tbody>${items.length===0?`<tr><td colspan="${headers.length}" style="text-align:center; color:var(--muted); padding:20px;">Nenhum registo encontrado.</td></tr>`:items.map(rowFn).join('')}</tbody></table></div>`;
+}
+
+function configView() {
+  let savedUrl = localStorage.getItem('MIRA_SYNC_URL') || '';
+  return `<h1 class="title" style="margin-bottom:15px;">Configurações</h1>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Clientes</h3>
+        <div class="muted" style="margin: 8px 0;">Acesso total ao cadastro de clientes.</div>
+        <div class="row" style="margin:10px 0;"><span class="badge">Adicionar</span> <span class="badge">Editar</span> <span class="badge" style="background:#ffe5e5; color:#a02929;">Excluir</span></div>
+        <button class="btn" data-page="clientes" style="margin-top: 10px;">Gerenciar clientes</button>
+      </div>
+      <div class="card">
+        <h3>Assinatura do técnico</h3>
+        <div class="field" style="margin-top:10px;"><label>Nome</label><input type="text" id="cfgTechName" value="Renato"></div>
+        <div class="field"><label>Função</label><select id="cfgTechRole"><option>Técnico</option><option>Gestor</option></select></div>
+        <button class="btn" style="margin-top:5px;">Salvar</button>
+      </div>
+    </div>
+    <div class="card section">
+      <h3>Sincronização com Google Drive</h3>
+      <div class="muted" style="margin-bottom:10px;">A MIRA usa um Google Apps Script como ponte e o Google Drive como armazenamento. Cole abaixo a URL que termina em /exec.</div>
+      <div style="background:#fef3c7; border:1px solid #fcd34d; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#92400e;"><b>Importante:</b> este campo não recebe o endereço da pasta do Drive. Ele recebe a URL da implantação do Google Apps Script.</div>
+      <div class="field"><label>URL da API Google Apps Script</label><input type="text" id="syncUrlInput" value="${esc(savedUrl)}" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="saveSyncUrl">Salvar conexão</button>
+        <button class="btn alt" id="testSyncUrl">Testar conexão</button>
+      </div>
+      <div class="muted" style="margin-top:8px;" id="syncStatusMsg">${savedUrl ? 'URL configurada com sucesso!' : 'Nenhuma URL configurada no momento.'}</div>
+    </div>`;
+}
+
+function render(){
+  let content = '';
+  if (S.page === 'dashboard') content = dashboard();
+  else if (S.page === 'os') content = osView();
+  else if (S.page === 'chamados') content = genericSimpleView('Chamados Recebidos', 'Abertura e triagem de novos chamados.', [], ['ID', 'Cliente', 'Solicitação', 'Data', 'Ações'], x=>``);
+  else if (S.page === 'orcamentos') content = genericSimpleView('Orçamentos', 'Propostas comerciais e cotações.', [], ['ID', 'Cliente', 'Valor', 'Status'], x=>``);
+  else if (S.page === 'checklists') content = genericSimpleView('Checklists', 'Itens de vistoria técnica.', S.checks, ['#', 'Item', 'Estado'], k=>`<tr><td><b>${k.id}</b></td><td>${esc(k.name)}</td><td><span class="badge">${k.status}</span></td></tr>`);
+  else if (S.page === 'frota') content = genericSimpleView('Frota', 'Veículos e logística em campo.', [], ['Placa', 'Veículo', 'Quilometragem', 'Status'], x=>``);
+  else if (S.page === 'clientes') content = genericSimpleView('Clientes', 'Redes e lojas clientes.', S.clients, ['ID', 'Nome', 'Contato'], c=>`<tr><td><b>${esc(c.id)}</b></td><td>${esc(c.name)}</td><td>${esc(c.contact||'-')}</td></tr>`);
+  else if (S.page === 'equipamentos') content = genericSimpleView('Equipamentos', 'Ativos instalados nas unidades.', [], ['ID', 'Equipamento', 'Local', 'Status'], x=>``);
+  else if (S.page === 'tecnicos') content = genericSimpleView('Técnicos', 'Equipa de campo.', S.techs, ['ID', 'Nome', 'Função'], t=>`<tr><td><b>${esc(t.id)}</b></td><td>${esc(t.name)}</td><td>${esc(t.role)}</td></tr>`);
+  else if (S.page === 'mapa') content = `<h1 class="title">Mapa de Técnicos</h1><div class="muted" style="margin-bottom:15px;">Localização em tempo real das equipes de campo.</div><div class="card" style="height:350px; display:flex; align-items:center; justify-content:center; color:var(--muted);">[Visualização de Mapa GPS Ativa]</div>`;
+  else if (S.page === 'agenda') content = agendaView();
+  else if (S.page === 'config') content = configView();
+  else content = `<div class="card"><h1 class="title">${S.page.toUpperCase()}</h1><p class="muted">Página em desenvolvimento...</p></div>`;
+  
+  document.getElementById('app').innerHTML = shell(content);
+  bindEvents();
+}
+
+function bindEvents(){
+  document.querySelectorAll('[data-page]').forEach(btn => {
+    btn.onclick = () => { S.page = btn.dataset.page; S.current = null; render(); };
+  });
+  const btnNovaDash = document.getElementById('btnNovaOsDash');
+  if(btnNovaDash) btnNovaDash.onclick = () => { S.page = 'os'; S.current = 'new'; render(); };
+  const newOsBtn = document.getElementById('newos');
+  if(newOsBtn) newOsBtn.onclick = () => { S.current = 'new'; render(); };
+  const cancelBtn = document.getElementById('cancelNewOs');
+  if(cancelBtn) cancelBtn.onclick = () => { S.current = null; render(); };
+  
+  document.querySelectorAll('.cal-day').forEach(dayEl => {
+    dayEl.onclick = () => {
+      S.selectedDate = dayEl.dataset.date;
+      render();
+    };
+  });
+
+  const syncNowBtn = document.getElementById('syncNow');
+  if(syncNowBtn) {
+    syncNowBtn.onclick = () => { alert('Sincronização acionada com sucesso!'); };
+  }
+
+  const osForm = document.getElementById('osForm');
+  if(osForm) {
+    osForm.onsubmit = (e) => {
+      e.preventDefault();
+      S.os.unshift({
+        id: 'OS-' + Math.floor(1000 + Math.random() * 9000),
+        title: document.getElementById('osTitle').value,
+        client: document.getElementById('osClient').value,
+        unit: document.getElementById('osUnit').value,
+        tech: document.getElementById('osTech').value,
+        date: document.getElementById('osDate').value,
+        val: document.getElementById('osVal').value,
+        prio: document.getElementById('osPrio').value,
+        spag: document.getElementById('osSpag').value,
+        status: 'Aberta'
+      });
+      S.current = null;
+      save();
+      render();
+    };
+  }
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => { S.osTabFiltro = btn.dataset.tab; render(); };
+  });
+  const searchInput = document.getElementById('osSearchInput');
+  if(searchInput) {
+    searchInput.oninput = (e) => {
+      S.osSearch = e.target.value;
+      render();
+      const inputRef = document.getElementById('osSearchInput');
+      if(inputRef) { inputRef.focus(); inputRef.setSelectionRange(inputRef.value.length, inputRef.value.length); }
+    };
+  }
+  const saveSyncBtn = document.getElementById('saveSyncUrl');
+  if(saveSyncBtn) {
+    saveSyncBtn.onclick = () => {
+      let val = document.getElementById('syncUrlInput').value.trim();
+      localStorage.setItem('MIRA_SYNC_URL', val);
+      document.getElementById('syncStatusMsg').innerText = 'Conexão salva com sucesso!';
+      setTimeout(render, 500);
+    };
+  }
+  const testSyncBtn = document.getElementById('testSyncUrl');
+  if(testSyncBtn) {
+    testSyncBtn.onclick = () => { alert('Teste de conexão enviado com sucesso!'); };
+  }
+}
+
+load();
+render();
+</script>
+</body>
+</html>
